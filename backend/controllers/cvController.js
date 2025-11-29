@@ -2,17 +2,17 @@
 const Analysis = require('../models/Analysis');
 const User = require('../models/User');
 const { extractTextFromPDF, analyzeCV, generateOptimizedCV } = require('../utils/openai');
+const { s3Configured, uploadFileToS3 } = require('../utils/storage');
+const { getAnalysisQueue, isRedisAvailable } = require('../utils/queue');
 const path = require('path');
 const fs = require('fs').promises;
 
 /**
- * @desc    Upload et analyse d'un CV
+ * @desc    Upload et analyse d'un CV (async via queue si Redis disponible, sinon sync)
  * @route   POST /api/cv/upload
  * @access  Private
  */
 exports.uploadAndAnalyze = async (req, res) => {
-  const startTime = Date.now();
-  
   try {
     // Vérifier qu'un fichier a été uploadé
     if (!req.file) {
@@ -22,7 +22,7 @@ exports.uploadAndAnalyze = async (req, res) => {
       });
     }
 
-    // Créer l'entrée d'analyse
+    // Créer l'entrée d'analyse avec statut 'processing'
     const analysis = await Analysis.create({
       userId: req.user.id,
       originalFileName: req.file.originalname,
@@ -30,14 +30,55 @@ exports.uploadAndAnalyze = async (req, res) => {
       status: 'processing'
     });
 
-    // Extraire le texte du PDF
-    const cvText = await extractTextFromPDF(req.file.path);
+    // Essayer d'utiliser la queue si Redis disponible
+    const queue = getAnalysisQueue();
+    if (queue && isRedisAvailable()) {
+      try {
+        const job = await queue.add(
+          'analyze',
+          {
+            analysisId: analysis._id.toString(),
+            userId: req.user.id.toString(),
+            filePath: req.file.path,
+            originalFileName: req.file.originalname
+          },
+          {
+            jobId: `${analysis._id}`,
+            removeOnComplete: true,
+            removeOnFail: false
+          }
+        );
+        console.log(`[CV] Job async créé: ${job.id}`);
+        return res.status(202).json({
+          success: true,
+          message: 'Analyse en cours (async)...',
+          data: {
+            analysisId: analysis._id,
+            status: 'processing',
+            originalFileName: analysis.originalFileName
+          }
+        });
+      } catch (queueErr) {
+        console.warn('[CV] Erreur queue, traitement synchrone:', queueErr.message);
+        // Fallback au traitement synchrone
+      }
+    }
 
+    // Traitement synchrone (fallback si Redis non disponible)
+    console.log('[CV] Traitement synchrone de l\'analyse');
+    const startTime = Date.now();
+    
+    const cvText = await extractTextFromPDF(req.file.path);
     if (!cvText || cvText.trim().length < 100) {
       analysis.status = 'failed';
       analysis.errorMessage = 'Le CV ne contient pas assez de texte exploitable';
       await analysis.save();
-      
+      // Nettoyer le fichier
+      try {
+        await fs.unlink(req.file.path);
+      } catch (e) {
+        console.error('[CV] Erreur suppression fichier:', e.message);
+      }
       return res.status(400).json({
         success: false,
         message: 'Le CV ne contient pas assez de texte. Vérifiez que le PDF est lisible.'
@@ -46,8 +87,6 @@ exports.uploadAndAnalyze = async (req, res) => {
 
     // Analyser avec OpenAI
     const analysisResult = await analyzeCV(cvText);
-
-    // Mettre à jour l'analyse avec les résultats
     analysis.score = analysisResult.score;
     analysis.strengths = analysisResult.strengths;
     analysis.weaknesses = analysisResult.weaknesses;
@@ -60,7 +99,31 @@ exports.uploadAndAnalyze = async (req, res) => {
 
     await analysis.save();
 
-    // Incrémenter le compteur d'analyses de l'utilisateur
+    // Upload S3 si configuré
+    try {
+      if (s3Configured() && req.file && req.file.path) {
+        const key = `uploads/${req.user.id}_${Date.now()}${path.extname(req.file.originalname)}`;
+        const s3Url = await uploadFileToS3(req.file.path, key);
+        analysis.fileUrl = s3Url;
+        await analysis.save();
+        try {
+          await fs.unlink(req.file.path);
+        } catch (e) {
+          console.error('[CV] Erreur suppression après S3:', e.message);
+        }
+      } else {
+        // Supprimer le fichier local sinon
+        try {
+          await fs.unlink(req.file.path);
+        } catch (e) {
+          console.error('[CV] Erreur suppression fichier local:', e.message);
+        }
+      }
+    } catch (err) {
+      console.error('[CV] Erreur upload S3:', err);
+    }
+
+    // Incrémenter le compteur
     await User.findByIdAndUpdate(req.user.id, {
       $inc: { analysesCount: 1 }
     });
@@ -82,17 +145,14 @@ exports.uploadAndAnalyze = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Erreur upload/analyse:', error);
-    
-    // Supprimer le fichier en cas d'erreur
+    console.error('[CV] Erreur:', error);
     if (req.file) {
       try {
         await fs.unlink(req.file.path);
-      } catch (unlinkError) {
-        console.error('Erreur suppression fichier:', unlinkError);
+      } catch (e) {
+        console.error('[CV] Erreur suppression fichier:', e.message);
       }
     }
-
     res.status(500).json({
       success: false,
       message: 'Erreur lors de l\'analyse du CV',

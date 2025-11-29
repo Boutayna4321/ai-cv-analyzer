@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
+const { validateCreateSession, validate } = require('../middleware/validators');
 const {
   createCheckoutSession,
   handleWebhook,
@@ -13,7 +14,7 @@ const {
  * @route   POST /api/payment/create-session
  * @access  Private
  */
-router.post('/create-session', protect, createCheckoutSession);
+router.post('/create-session', protect, validateCreateSession, validate, createCheckoutSession);
 
 /**
  * @desc    Webhook Stripe pour gérer les événements

@@ -1,160 +1,99 @@
-.app-shell {
-  min-height: 100vh;
-  padding: 2rem;
-  background: #0f172a;
-  color: #f8fafc;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
+/* App styles using Tailwind CSS */
+@layer components {
+  .app-shell {
+    @apply min-h-screen p-8 bg-slate-900 text-slate-50;
+  }
 
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 2rem;
-}
+  header {
+    @apply flex justify-between items-center gap-4 flex-wrap mb-8;
+  }
 
-header h1 {
-  margin: 0;
-  font-size: 2rem;
-}
+  header h1 {
+    @apply text-2xl font-bold m-0;
+  }
 
-.user-badge {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-}
+  .user-badge {
+    @apply flex gap-3 items-center;
+  }
 
-.user-badge button {
-  padding: 0.4rem 0.9rem;
-  border-radius: 999px;
-  border: none;
-  background: rgba(248, 250, 252, 0.1);
-  color: inherit;
-  cursor: pointer;
-}
+  .user-badge button {
+    @apply px-4 py-1 rounded-full border-none bg-white/10 text-inherit cursor-pointer transition-colors hover:bg-white/20;
+  }
 
-.plan {
-  padding: 0.3rem 0.75rem;
-  border-radius: 999px;
-  text-transform: uppercase;
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
-}
+  .plan {
+    @apply px-3 py-1 rounded-full uppercase text-xs tracking-wider font-semibold;
+  }
 
-.plan.premium {
-  background: linear-gradient(120deg, #facc15, #f97316);
-  color: #0f172a;
-}
+  .plan.premium {
+    @apply bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-900;
+  }
 
-.plan.free {
-  background: rgba(248, 250, 252, 0.2);
-}
+  .plan.free {
+    @apply bg-white/20;
+  }
 
-.card {
-  background: rgba(15, 23, 42, 0.75);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 30px 50px rgba(0, 0, 0, 0.35);
-}
+  .card {
+    @apply bg-slate-800/75 border border-slate-700/20 rounded-2xl p-6 mb-6 shadow-2xl;
+  }
 
-.auth-toggle {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
+  .auth-toggle {
+    @apply flex gap-4 mb-4;
+  }
 
-.auth-toggle button {
-  flex: 1;
-  padding: 0.75rem;
-  border-radius: 0.75rem;
-  border: 1px solid transparent;
-  background: rgba(248, 250, 252, 0.08);
-  color: #e2e8f0;
-  font-weight: 600;
-  cursor: pointer;
-}
+  .auth-toggle button {
+    @apply flex-1 py-3 rounded-lg border border-transparent bg-white/8 text-slate-200 font-semibold cursor-pointer transition-all hover:bg-white/12;
+  }
 
-.auth-toggle button.active {
-  background: #6366f1;
-  border-color: #a5b4fc;
-}
+  .auth-toggle button.active {
+    @apply bg-indigo-500 border-indigo-400 text-white;
+  }
 
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
+  form {
+    @apply flex flex-col gap-3;
+  }
 
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="file"] {
-  padding: 0.9rem 1rem;
-  border-radius: 0.8rem;
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  background: rgba(15, 23, 42, 0.6);
-  color: #f8fafc;
-}
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="file"] {
+    @apply p-3 rounded-lg border border-slate-600/30 bg-slate-900/60 text-slate-50 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all;
+  }
 
-button {
-  border: none;
-  padding: 0.9rem 1.2rem;
-  border-radius: 0.8rem;
-  font-weight: 600;
-  background: linear-gradient(120deg, #6366f1, #8b5cf6);
-  color: white;
-  cursor: pointer;
-}
+  button {
+    @apply border-none py-3 px-5 rounded-lg font-semibold bg-gradient-to-r from-indigo-500 to-purple-600 text-white cursor-pointer transition-transform hover:scale-105 active:scale-95;
+  }
 
-.results .grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
-}
+  .results .grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
 
-.results ul {
-  margin: 0;
-  padding-left: 1rem;
-}
+  .results ul {
+    @apply m-0 pl-4;
+  }
 
-.history-list {
-  display: grid;
-  gap: 0.75rem;
-}
+  .history-list {
+    @apply grid gap-3;
+  }
 
-.history-list article {
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 0.8rem;
-  padding: 0.9rem;
-}
+  .history-list article {
+    @apply border border-slate-700/20 rounded-lg p-3 hover:bg-slate-800/50 transition-colors;
+  }
 
-.score {
-  font-size: 1.6rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-}
+  .score {
+    @apply text-2xl font-bold mb-4 text-amber-400;
+  }
 
-.toast {
-  position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  padding: 0.9rem 1.4rem;
-  border-radius: 0.9rem;
+  .toast {
+    @apply fixed bottom-6 right-6 bg-slate-900/90 border border-slate-700/30 p-4 rounded-lg shadow-lg z-50;
+  }
 }
 
 @media (max-width: 640px) {
   .app-shell {
-    padding: 1rem;
+    @apply p-4;
   }
 
   header {
-    flex-direction: column;
-    align-items: flex-start;
+    @apply flex-col items-start;
   }
 }

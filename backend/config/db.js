@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+let isMongoConnected = false;
+
 const sanitizeUri = (uri) => {
   try {
     const parsed = new URL(uri);
@@ -17,17 +19,24 @@ const connectDB = async () => {
 
     const connection = await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
-      useUnifiedTopology: true
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000
     });
 
+    isMongoConnected = true;
     const host = connection.connection.host;
     const dbName = connection.connection.name;
     console.log(`✅ MongoDB connecté (${host}/${dbName || 'default'})`);
     console.log(`📡 URI: ${sanitizeUri(process.env.MONGODB_URI)}`);
   } catch (error) {
+    isMongoConnected = false;
     console.error('❌ Erreur MongoDB:', error.message);
-    process.exit(1);
+    console.log('⚠️  Le serveur démarre quand même (mode dégradé sans DB)');
   }
 };
 
+const isDBConnected = () => isMongoConnected;
+
 module.exports = connectDB;
+module.exports.isDBConnected = isDBConnected;
