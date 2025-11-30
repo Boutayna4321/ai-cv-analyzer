@@ -1,0 +1,52 @@
+const fr = {
+  app: {
+    title: 'Analyse instantanée et optimisation de CV',
+    subtitle: "Analyse instantanée et optimisation de CV",
+    login: "Se connecter",
+    register: "S'inscrire",
+    name: 'Nom',
+    email: 'Email',
+    password: 'Mot de passe',
+    upload_cv: 'Téléverser CV',
+    submit: 'Envoyer',
+    logout: 'Se déconnecter',
+    profile: 'Profil',
+    history: 'Historique',
+    premium: 'Premium',
+    free: 'Gratuit',
+    analyze: 'Analyser le CV',
+    select_language: 'Langue',
+    messages: {
+      invalid_email: 'Email invalide',
+      name_short: 'Le nom doit contenir au moins 2 caractères',
+      password_short: 'Le mot de passe doit contenir au moins 6 caractères',
+      login_success: 'Connecté avec succès',
+      auth_error: 'Erreur authentification',
+      select_pdf: 'Sélectionnez un fichier PDF',
+      only_pdfs: 'Seuls les fichiers PDF sont autorisés',
+      file_too_large: 'Le fichier est trop volumineux (max 5MB)',
+      analysis_complete: "Analyse terminée",
+      analysis_error: 'Erreur analyse',
+      please_wait: 'Veuillez patienter...',
+      login: 'Se connecter',
+      register: 'Inscription',
+      logout: 'Déconnexion',
+      upload_title: 'Analyser un CV',
+      upload_subtitle: 'Plan gratuit : 3 analyses / mois. Plan premium : illimité.',
+      analyze_button: "Lancer l'analyse",
+      analyzing: 'Analyse en cours...',
+      results_title: "Résultat de l'analyse",
+      global_score: 'Score global',
+      strengths_title: '✓ Points forts',
+      weaknesses_title: '⚠ Points faibles',
+      missing_skills_title: '+ Compétences manquantes',
+      history_title: 'Historique récent',
+      score_label: 'Score',
+      status_label: 'Statut',
+      create_account: 'Créer un compte',
+      no_history: 'Aucune analyse pour le moment.'
+    }
+  }
+};
+
+export default fr;

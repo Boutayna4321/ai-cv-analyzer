@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useI18n } from './i18n';
 
 const API_BASE = 'http://localhost:5000/api';
 
@@ -12,24 +13,9 @@ function App() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const { t, lang, setLang } = useI18n();
 
-  useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    if (storedToken) {
-      setToken(storedToken);
-      fetchProfile(storedToken);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (token) {
-      fetchHistory();
-    } else {
-      setHistory([]);
-    }
-  }, [token]);
-
-  const fetchProfile = async (authToken = token) => {
+  const fetchProfile = useCallback(async (authToken = token) => {
     try {
       const res = await fetch(`${API_BASE}/auth/me`, {
         headers: { Authorization: `Bearer ${authToken}` }
@@ -42,11 +28,16 @@ function App() {
       }
     } catch (error) {
       console.error(error);
-      handleLogout();
+      // perform local logout actions here to avoid depending on handleLogout
+      localStorage.removeItem('token');
+      setToken('');
+      setUser(null);
+      setAnalysis(null);
+      setHistory([]);
     }
-  };
+  }, [token]);
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/cv/history`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -58,7 +49,25 @@ function App() {
     } catch (error) {
       console.error(error);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token');
+    if (storedToken) {
+      setToken(storedToken);
+      fetchProfile(storedToken);
+    }
+  }, [fetchProfile]);
+
+  useEffect(() => {
+    if (token) {
+      fetchHistory();
+    } else {
+      setHistory([]);
+    }
+  }, [fetchHistory, token]);
+
+  
 
   const handleAuthSubmit = (event) => {
     event.preventDefault();
@@ -68,17 +77,17 @@ function App() {
     const endpoint = mode === 'login' ? 'login' : 'register';
     
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(authForm.email)) {
-      setMessage('Email invalide');
+      setMessage(t('app.messages.invalid_email'));
       setLoading(false);
       return;
     }
     if (mode === 'register' && (!authForm.name || authForm.name.trim().length < 2)) {
-      setMessage('Le nom doit contenir au moins 2 caractères');
+      setMessage(t('app.messages.name_short'));
       setLoading(false);
       return;
     }
     if (!authForm.password || authForm.password.length < 6) {
-      setMessage('Le mot de passe doit contenir au moins 6 caractères');
+      setMessage(t('app.messages.password_short'));
       setLoading(false);
       return;
     }
@@ -94,9 +103,9 @@ function App() {
           setToken(data.data.token);
           localStorage.setItem('token', data.data.token);
           setUser(data.data.user);
-          setMessage('Connecté avec succès');
+          setMessage(t('app.messages.login_success'));
         } else {
-          throw new Error(data.message || 'Erreur authentification');
+          throw new Error(data.message || t('app.messages.auth_error'));
         }
       })
       .catch(error => {
@@ -110,7 +119,7 @@ function App() {
   const handleUpload = (event) => {
     event.preventDefault();
     if (!cvFile) {
-      setMessage('Sélectionnez un fichier PDF');
+      setMessage(t('app.messages.select_pdf'));
       return;
     }
 
@@ -118,13 +127,13 @@ function App() {
     setMessage('');
 
     if (cvFile.type !== 'application/pdf') {
-      setMessage('Seuls les fichiers PDF sont autorisés');
+      setMessage(t('app.messages.only_pdfs'));
       setLoading(false);
       return;
     }
     const maxSize = 5242880;
     if (cvFile.size > maxSize) {
-      setMessage('Le fichier est trop volumineux (max 5MB)');
+      setMessage(t('app.messages.file_too_large'));
       setLoading(false);
       return;
     }
@@ -141,10 +150,10 @@ function App() {
       .then(data => {
         if (data.data) {
           setAnalysis(data.data);
-          setMessage('Analyse terminée');
+          setMessage(t('app.messages.analysis_complete'));
           fetchHistory();
         } else {
-          throw new Error(data.message || 'Erreur analyse');
+          throw new Error(data.message || t('app.messages.analysis_error'));
         }
       })
       .catch(error => {
@@ -177,9 +186,9 @@ function App() {
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-12">
           <div>
             <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
-              AI CV Analyzer
+              {t('app.title')}
             </h1>
-            <p className="text-slate-400 text-lg">Analyse instantanée et optimisation de CV</p>
+            <p className="text-slate-400 text-lg">{t('app.subtitle')}</p>
           </div>
           {user && (
             <div className="flex items-center gap-3 bg-white/10 backdrop-blur-lg rounded-full px-6 py-3 border border-white/20">
@@ -195,18 +204,34 @@ function App() {
                 onClick={handleLogout}
                 className="ml-2 px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-200 text-sm font-medium"
               >
-                Déconnexion
+                {t('app.messages.logout')}
               </button>
             </div>
           )}
         </header>
+
+        {/* Language selector */}
+        <div className="absolute top-6 right-6">
+          <label className="sr-only">{t('app.select_language')}</label>
+          <div className="relative inline-block">
+            <select
+              value={lang}
+              onChange={(e) => { setLang(e.target.value); localStorage.setItem('lang', e.target.value); }}
+              className="appearance-none bg-white/10 text-white text-sm rounded-md px-3 py-1 border border-white/20 backdrop-blur-sm pr-8" 
+            >
+              <option value="fr">FR</option>
+              <option value="en">EN</option>
+            </select>
+            <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-white text-xs">▾</span>
+          </div>
+        </div>
 
         {/* Auth Section */}
         {!user && (
           <div className="max-w-md mx-auto">
             <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 shadow-2xl">
               <div className="flex gap-2 mb-6 bg-white/5 rounded-xl p-1">
-                <button
+                  <button
                   className={`flex-1 py-3 rounded-lg font-semibold transition-all duration-300 ${
                     mode === 'login' 
                       ? 'bg-gradient-to-r from-indigo-500 to-purple-600 shadow-lg' 
@@ -214,7 +239,7 @@ function App() {
                   }`}
                   onClick={() => setMode('login')}
                 >
-                  Connexion
+                  {t('app.messages.login')}
                 </button>
                 <button
                   className={`flex-1 py-3 rounded-lg font-semibold transition-all duration-300 ${
@@ -224,7 +249,7 @@ function App() {
                   }`}
                   onClick={() => setMode('register')}
                 >
-                  Inscription
+                  {t('app.messages.register')}
                 </button>
               </div>
 
@@ -232,7 +257,7 @@ function App() {
                 {mode === 'register' && (
                   <input
                     type="text"
-                    placeholder="Nom complet"
+                    placeholder={t('app.name')}
                     value={authForm.name}
                     onChange={(e) => setAuthForm({ ...authForm, name: e.target.value })}
                     className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/20 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/50 transition-all duration-200"
@@ -240,14 +265,14 @@ function App() {
                 )}
                 <input
                   type="email"
-                  placeholder="Email"
+                  placeholder={t('app.email')}
                   value={authForm.email}
                   onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })}
                   className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/20 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/50 transition-all duration-200"
                 />
                 <input
                   type="password"
-                  placeholder="Mot de passe"
+                  placeholder={t('app.password')}
                   value={authForm.password}
                   onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
                   className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/20 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/50 transition-all duration-200"
@@ -257,7 +282,7 @@ function App() {
                   disabled={loading}
                   className="w-full py-3 rounded-xl font-semibold bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                 >
-                  {loading ? 'Veuillez patienter...' : mode === 'login' ? 'Se connecter' : 'Créer un compte'}
+                  {loading ? t('app.messages.please_wait') : mode === 'login' ? t('app.messages.login') : t('app.messages.create_account')}
                 </button>
               </div>
             </div>
@@ -268,8 +293,8 @@ function App() {
         {user && (
           <div className="space-y-6">
             <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 shadow-2xl">
-              <h2 className="text-2xl font-bold mb-2">Analyser un CV</h2>
-              <p className="text-slate-400 mb-6">Plan gratuit : 3 analyses / mois. Plan premium : illimité.</p>
+              <h2 className="text-2xl font-bold mb-2">{t('app.messages.upload_title')}</h2>
+              <p className="text-slate-400 mb-6">{t('app.messages.upload_subtitle')}</p>
               
               <div className="space-y-4">
                 <input
@@ -283,7 +308,7 @@ function App() {
                   disabled={loading}
                   className="w-full py-3 rounded-xl font-semibold bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                 >
-                  {loading ? 'Analyse en cours...' : 'Lancer l\'analyse'}
+                    {loading ? t('app.messages.analyzing') : t('app.messages.analyze_button')}
                 </button>
               </div>
             </div>
@@ -291,19 +316,19 @@ function App() {
             {/* Results Section */}
             {analysis && (
               <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 shadow-2xl">
-                <h2 className="text-2xl font-bold mb-6">Résultat de l'analyse</h2>
+                  <h2 className="text-2xl font-bold mb-6">{t('app.messages.results_title')}</h2>
                 
                 <div className="mb-8 p-6 bg-gradient-to-r from-indigo-500/20 to-purple-600/20 rounded-xl border border-indigo-400/30">
                   <div className="text-5xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
                     {analysis.score}/100
                   </div>
-                  <div className="text-slate-400 mt-1">Score global</div>
+                  <div className="text-slate-400 mt-1">{t('app.messages.global_score')}</div>
                 </div>
 
                 <div className="grid md:grid-cols-3 gap-6">
                   <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-                    <h3 className="text-lg font-bold mb-4 text-green-400">✓ Points forts</h3>
-                    <ul className="space-y-2">
+                    <h3 className="text-lg font-bold mb-4 text-green-400">{t('app.messages.strengths_title')}</h3>
+                    <ul className="space-y-2 list-none pl-0">
                       {analysis.strengths?.map((item, idx) => (
                         <li key={idx} className="text-slate-300 pl-4 border-l-2 border-green-400/50">{item}</li>
                       ))}
@@ -311,8 +336,8 @@ function App() {
                   </div>
 
                   <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-                    <h3 className="text-lg font-bold mb-4 text-orange-400">⚠ Points faibles</h3>
-                    <ul className="space-y-2">
+                    <h3 className="text-lg font-bold mb-4 text-orange-400">{t('app.messages.weaknesses_title')}</h3>
+                    <ul className="space-y-2 list-none pl-0">
                       {analysis.weaknesses?.map((item, idx) => (
                         <li key={idx} className="text-slate-300 pl-4 border-l-2 border-orange-400/50">{item}</li>
                       ))}
@@ -320,8 +345,8 @@ function App() {
                   </div>
 
                   <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-                    <h3 className="text-lg font-bold mb-4 text-blue-400">+ Compétences manquantes</h3>
-                    <ul className="space-y-2">
+                    <h3 className="text-lg font-bold mb-4 text-blue-400">{t('app.messages.missing_skills_title')}</h3>
+                    <ul className="space-y-2 list-none pl-0">
                       {analysis.missingSkills?.map((item, idx) => (
                         <li key={idx} className="text-slate-300 pl-4 border-l-2 border-blue-400/50">{item}</li>
                       ))}
@@ -333,10 +358,10 @@ function App() {
 
             {/* History Section */}
             <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20 shadow-2xl">
-              <h2 className="text-2xl font-bold mb-6">Historique récent</h2>
-              
+              <h2 className="text-2xl font-bold mb-6">{t('app.messages.history_title')}</h2>
+
               {history.length === 0 ? (
-                <p className="text-slate-400 text-center py-8">Aucune analyse pour le moment.</p>
+                <p className="text-slate-400 text-center py-8">{t('app.messages.no_history')}</p>
               ) : (
                 <div className="space-y-3">
                   {history.map((item) => (
@@ -345,8 +370,8 @@ function App() {
                         <div>
                           <h4 className="font-semibold text-lg mb-1">{item.originalFileName}</h4>
                           <div className="flex gap-4 text-sm text-slate-400">
-                            <span>Score : <span className="font-semibold text-purple-400">{item.score || '—'}</span></span>
-                            <span>Statut : <span className="font-semibold">{item.status}</span></span>
+                            <span>{t('app.messages.score_label')} : <span className="font-semibold text-purple-400">{item.score || '—'}</span></span>
+                            <span>{t('app.messages.status_label')} : <span className="font-semibold">{item.status}</span></span>
                           </div>
                         </div>
                       </div>
